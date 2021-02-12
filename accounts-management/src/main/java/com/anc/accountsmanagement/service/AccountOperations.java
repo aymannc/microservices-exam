@@ -6,14 +6,16 @@ import com.anc.accountsmanagement.entities.Operation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface AccountOperations {
     Account addAccount(Account account,Long clientId);
 
-    boolean addDeposit(Float amount, Long accountId);
+    Operation addDeposit(Float amount, Long accountId);
 
-    boolean addWithdraw(Float amount, Long accountId);
+    Operation addWithdraw(Float amount, Long accountId);
 
-    boolean addTransaction(Float amount, Long fromAccountId, Long toAccountId);
+    List<Operation> addTransaction(Float amount, Long fromAccountId, Long toAccountId);
 
     Page<Operation> getAllOperations(Long accountId, Pageable pageable);
 

@@ -8,16 +8,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.ws.rs.QueryParam;
+import java.util.List;
 
 @RestController
 public class API {
     private final AccountOperations accountOperations;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public API(AccountOperations accountOperations) {
+    public API(AccountOperations accountOperations, KafkaTemplate<String, Object> kafkaTemplate) {
         this.accountOperations = accountOperations;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @PostMapping("/account/clients/{accountId}")
@@ -28,22 +32,32 @@ public class API {
     }
 
     @GetMapping("/account/addDeposit/{accountId}")
-    public ResponseEntity<Boolean> addDeposit(@PathVariable final Long accountId, @QueryParam("amount") Float amount) {
-        Boolean response = accountOperations.addDeposit(amount, accountId);
-        return new ResponseEntity<>(response, response ? HttpStatus.OK : HttpStatus.EXPECTATION_FAILED);
+    public ResponseEntity<Operation> addDeposit(@PathVariable final Long accountId, @QueryParam("amount") Float amount) {
+        Operation operation = accountOperations.addDeposit(amount, accountId);
+        if (operation != null)
+            kafkaTemplate.send("DEPOSIT", operation);
+
+        return new ResponseEntity<>(operation, operation != null ? HttpStatus.OK : HttpStatus.EXPECTATION_FAILED);
     }
 
     @GetMapping("/account/addWithdraw/{accountId}")
-    public ResponseEntity<Boolean> addWithdraw(@PathVariable final Long accountId, @QueryParam("amount") Float amount) {
-        Boolean response = accountOperations.addWithdraw(amount, accountId);
-        return new ResponseEntity<>(response, response ? HttpStatus.OK : HttpStatus.EXPECTATION_FAILED);
+    public ResponseEntity<Operation> addWithdraw(@PathVariable final Long accountId, @QueryParam("amount") Float amount) {
+        Operation operation = accountOperations.addWithdraw(amount, accountId);
+        if (operation != null)
+            kafkaTemplate.send("WITHDRAW", operation);
+        return new ResponseEntity<>(operation, operation != null ? HttpStatus.OK : HttpStatus.EXPECTATION_FAILED);
     }
 
     @GetMapping("/account/addTransaction/")
-    public ResponseEntity<Boolean> addTransaction(@QueryParam("amount") Float amount, @QueryParam("fromAccountId") Long fromAccountId,
-                                                  @QueryParam("toAccountId") Long toAccountId) {
-        Boolean response = accountOperations.addTransaction(amount, fromAccountId, toAccountId);
-        return new ResponseEntity<>(response, response ? HttpStatus.OK : HttpStatus.EXPECTATION_FAILED);
+    public ResponseEntity<List<Operation>> addTransaction(@QueryParam("amount") Float amount, @QueryParam("fromAccountId") Long fromAccountId,
+                                                          @QueryParam("toAccountId") Long toAccountId) {
+        List<Operation> operations = accountOperations.addTransaction(amount, fromAccountId, toAccountId);
+        if (operations.get(0) != null)
+            kafkaTemplate.send("WITHDRAW", operations.get(0));
+        else if (operations.get(1) != null) {
+            kafkaTemplate.send("DEPOSIT", operations.get(1));
+        }
+        return new ResponseEntity<>(operations, HttpStatus.OK);
     }
 
     @GetMapping("/account/getAllOperations/{accountId}")

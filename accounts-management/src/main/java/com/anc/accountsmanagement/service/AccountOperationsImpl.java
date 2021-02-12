@@ -12,7 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class AccountOperationsImpl implements AccountOperations {
@@ -34,39 +36,42 @@ public class AccountOperationsImpl implements AccountOperations {
     }
 
     @Override
-    public boolean addDeposit(Float amount, Long accountId) {
+    public Operation addDeposit(Float amount, Long accountId) {
         Account account = accountRepository.findById(accountId).get();
 
         if (account.getState() != AccountStates.SUSPENDED) {
             Operation operation = new Operation(null, new Date(), amount, OperationTypes.DEBIT, account);
-            operationRepository.save(operation);
+            operation = operationRepository.save(operation);
 
             account.setBalance(account.getBalance() + amount);
             accountRepository.save(account);
-            return true;
+            return operation;
         }
-        return false;
+        return null;
     }
 
     @Override
-    public boolean addWithdraw(Float amount, Long accountId) {
+    public Operation addWithdraw(Float amount, Long accountId) {
 
         Account account = accountRepository.findById(accountId).get();
-        ;
         if (account.getState() != AccountStates.SUSPENDED) {
             Operation operation = new Operation(null, new Date(), amount, OperationTypes.CREIDT, account);
-            operationRepository.save(operation);
+            operation = operationRepository.save(operation);
 
             account.setBalance(account.getBalance() - amount);
             accountRepository.save(account);
-            return true;
+            return operation;
         }
-        return false;
+        return null;
     }
 
     @Override
-    public boolean addTransaction(Float amount, Long fromAccountId, Long toAccountId) {
-        return addWithdraw(amount, fromAccountId) && addDeposit(amount, toAccountId);
+    public List<Operation> addTransaction(Float amount, Long fromAccountId, Long toAccountId) {
+        ArrayList<Operation> operations = new ArrayList<>();
+        operations.add(addWithdraw(amount, fromAccountId));
+        operations.add(addDeposit(amount, toAccountId));
+
+        return operations;
     }
 
     @Override
