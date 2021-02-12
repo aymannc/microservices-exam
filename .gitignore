@@ -1,0 +1,9 @@
+/.idea/
+/.idea/*
+/.idea/libraries/
+.idea/*
+dockerapp
+/accounts-management/.mvn/
+/clients-manegement/.mvn/
+/operations-consumer/.mvn/
+/operations-producer/.mvn/
